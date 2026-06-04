@@ -334,6 +334,11 @@ class MainWindow(QMainWindow):
         self._qzfm_window.raise_()
         self._qzfm_window.activateWindow()
 
+    def _open_sensors(self) -> None:
+        """Open the Sensor Manager dialog."""
+        dialog = SensorDialog(self._sensor_manager, self._sensor_worker, parent=self)
+        dialog.exec()
+
     def _open_settings(self) -> None:
         """Open the settings dialog."""
         dialog = SettingsDialog(daq_config=self._daq_config, parent=self)
