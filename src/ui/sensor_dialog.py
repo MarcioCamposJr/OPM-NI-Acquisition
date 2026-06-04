@@ -322,12 +322,14 @@ class SensorDialog(QDialog):
         self.lbl_bz.setText(f"{info.bz_field:.2f} pT")
         self.lbl_temp_err.setText(f"{info.cell_temp_error:.4f}")
         
+        if info.connected:
             self.btn_connect.setText("Desconectar")
             self.btn_zero.setEnabled(True)
             self.btn_reset.setEnabled(True)
             self.btn_auto_start.setEnabled(True)
             self.btn_wizard.setEnabled(True)
             self.chk_stream.setEnabled(True)
+        else:
             self.btn_connect.setText("Conectar")
             self.btn_zero.setEnabled(False)
             self.btn_reset.setEnabled(False)
