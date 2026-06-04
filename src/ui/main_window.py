@@ -37,6 +37,7 @@ from src.ui.chart_widget import ChartWidget
 from src.ui.control_panel import ControlPanel
 from src.ui.settings_dialog import SettingsDialog
 from src.ui.ica_window import IcaWindow
+from src.ui.qzfm_window import QzfmWindow
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ class MainWindow(QMainWindow):
         self._recorder = TdmsRecorder()
         self._exporter = DataExporter()
         self._ica_window: IcaWindow | None = None
-        self._sensor_dialog: SensorDialog | None = None
+        self._qzfm_window: QzfmWindow | None = None
 
         # Accumulator for export (keeps filtered data while acquiring).
         self._export_buffer: list[np.ndarray] = []
@@ -134,6 +135,7 @@ class MainWindow(QMainWindow):
         cp.settings_clicked.connect(self._open_settings)
         cp.manage_sensors_clicked.connect(self._open_sensors)
         cp.ica_clicked.connect(self._open_ica)
+        cp.qzfm_clicked.connect(self._open_qzfm)
         cp.sample_rate_changed.connect(self._on_sample_rate_changed)
         cp.window_seconds_changed.connect(self._on_window_changed)
         
@@ -323,13 +325,14 @@ class MainWindow(QMainWindow):
         self._ica_window.raise_()
         self._ica_window.activateWindow()
 
-    def _open_sensors(self) -> None:
-        """Open the Sensor Management Dialog."""
-        if self._sensor_dialog is None:
-            self._sensor_dialog = SensorDialog(self._sensor_manager, self._sensor_worker, self)
-        self._sensor_dialog.show()
-        self._sensor_dialog.raise_()
-        self._sensor_dialog.activateWindow()
+    def _open_qzfm(self) -> None:
+        """Open the QZFM Sensor Control Window."""
+        if self._qzfm_window is None:
+            self._qzfm_window = QzfmWindow(parent=self)
+        self._qzfm_window.set_active_channels(self._daq_config.active_channels)
+        self._qzfm_window.show()
+        self._qzfm_window.raise_()
+        self._qzfm_window.activateWindow()
 
     def _open_settings(self) -> None:
         """Open the settings dialog."""
@@ -406,10 +409,8 @@ class MainWindow(QMainWindow):
             self._daq_worker.wait(3000)
         if self._recorder.is_recording:
             self._recorder.stop()
-            
-        s = QSettings("OPM", "OPM-Acquisition")
-        self._sensor_manager.save_config(s)
-        self._sensor_worker.stop_worker()
-        self._sensor_manager.disconnect_all()
-        
+        if self._ica_window is not None:
+            self._ica_window.close()
+        if self._qzfm_window is not None:
+            self._qzfm_window.close()
         event.accept()

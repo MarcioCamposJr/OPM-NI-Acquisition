@@ -82,6 +82,7 @@ class ControlPanel(QWidget):
     settings_clicked = pyqtSignal()
     manage_sensors_clicked = pyqtSignal()
     ica_clicked = pyqtSignal()
+    qzfm_clicked = pyqtSignal()
     sample_rate_changed = pyqtSignal(float)
     window_seconds_changed = pyqtSignal(float)
 
@@ -113,6 +114,17 @@ class ControlPanel(QWidget):
 
         layout.addWidget(_make_separator())
 
+        # ── Sensor Calibration ────────────────────────────────────────── #
+        cal_group = QGroupBox("SENSOR CALIBRATION")
+        cal_layout = QVBoxLayout(cal_group)
+        cal_layout.setSpacing(6)
+
+        self._btn_qzfm = QPushButton("QZFM SENSORS")
+        self._btn_qzfm.clicked.connect(self.qzfm_clicked.emit)
+        cal_layout.addWidget(self._btn_qzfm)
+
+        layout.addWidget(cal_group)
+
         # ── Status indicator ──────────────────────────────────────────── #
         status_group = QGroupBox("STATUS")
         status_layout = QVBoxLayout(status_group)
@@ -128,26 +140,21 @@ class ControlPanel(QWidget):
 
         layout.addWidget(status_group)
 
-        # ── Sensors ───────────────────────────────────────────────────── #
-        self.sensor_panel = SensorPanel()
-        self.sensor_panel.manage_clicked.connect(self.manage_sensors_clicked.emit)
-        layout.addWidget(self.sensor_panel)
-
-        # ── DAQ controls ──────────────────────────────────────── #
-        acq_group = QGroupBox("DAQ CONTROL")
+        # ── Acquisition controls ──────────────────────────────────────── #
+        acq_group = QGroupBox("DAQ CONNECTION")
         acq_layout = QVBoxLayout(acq_group)
         acq_layout.setSpacing(6)
 
-        # Start / Stop in a row
+        # ON / OFF in a row
         btn_row = QHBoxLayout()
         btn_row.setSpacing(4)
 
-        self._btn_start = QPushButton("START DAQ")
+        self._btn_start = QPushButton("ON")
         self._btn_start.setObjectName("btn_start")
         self._btn_start.clicked.connect(self.start_clicked.emit)
         btn_row.addWidget(self._btn_start)
 
-        self._btn_stop = QPushButton("STOP DAQ")
+        self._btn_stop = QPushButton("OFF")
         self._btn_stop.setObjectName("btn_stop")
         self._btn_stop.setEnabled(False)
         self._btn_stop.clicked.connect(self.stop_clicked.emit)
@@ -174,22 +181,18 @@ class ControlPanel(QWidget):
         self._btn_export.clicked.connect(self.export_clicked.emit)
         rec_layout.addWidget(self._btn_export)
 
-        layout.addWidget(rec_group)
-        
-        # ── Analysis ──────────────────────────────────────────────────── #
-        an_group = QGroupBox("ANALYSIS")
-        an_layout = QVBoxLayout(an_group)
-        an_layout.setSpacing(6)
-        
-        self._btn_ica = QPushButton("ICA REALTIME")
-        self._btn_ica.clicked.connect(self.ica_clicked.emit)
-        an_layout.addWidget(self._btn_ica)
-        
-        layout.addWidget(an_group)
+        self._btn_settings = QPushButton("SETTINGS")
+        self._btn_settings.clicked.connect(self.settings_clicked.emit)
+        rec_layout.addWidget(self._btn_settings)
 
-        # ── Quick settings ────────────────────────────────────────────── #
-        param_group = QGroupBox("PARAMETERS")
-        param_layout = QFormLayout(param_group)
+        layout.addWidget(rec_group)
+
+        # ── Data Visualization ────────────────────────────────────────── #
+        viz_group = QGroupBox("DATA VISUALIZATION")
+        viz_layout = QVBoxLayout(viz_group)
+        viz_layout.setSpacing(6)
+
+        param_layout = QFormLayout()
         param_layout.setSpacing(6)
         param_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
@@ -210,12 +213,13 @@ class ControlPanel(QWidget):
         self._spin_window.valueChanged.connect(self._on_window_changed)
         param_layout.addRow("TIME:", self._spin_window)
 
-        layout.addWidget(param_group)
+        viz_layout.addLayout(param_layout)
 
-        # ── Settings button ───────────────────────────────────────────── #
-        self._btn_settings = QPushButton("SETTINGS")
-        self._btn_settings.clicked.connect(self.settings_clicked.emit)
-        layout.addWidget(self._btn_settings)
+        self._btn_ica = QPushButton("REALTIME ICA")
+        self._btn_ica.clicked.connect(self.ica_clicked.emit)
+        viz_layout.addWidget(self._btn_ica)
+
+        layout.addWidget(viz_group)
 
         # ── Stretch ───────────────────────────────────────────────────── #
         layout.addStretch()
