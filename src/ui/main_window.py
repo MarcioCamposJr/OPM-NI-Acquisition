@@ -133,13 +133,10 @@ class MainWindow(QMainWindow):
         cp.save_toggled.connect(self._toggle_recording)
         cp.export_clicked.connect(self._export_data)
         cp.settings_clicked.connect(self._open_settings)
-        cp.manage_sensors_clicked.connect(self._open_sensors)
         cp.ica_clicked.connect(self._open_ica)
-        cp.qzfm_clicked.connect(self._open_qzfm)
+        cp.qzfm_clicked.connect(self._open_sensors)
         cp.sample_rate_changed.connect(self._on_sample_rate_changed)
         cp.window_seconds_changed.connect(self._on_window_changed)
-        
-        self._sensor_worker.status_updated.connect(cp.sensor_panel.update_sensor)
 
     # ── Acquisition start / stop ──────────────────────────────────────── #
 
