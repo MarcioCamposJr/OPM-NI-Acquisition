@@ -360,9 +360,9 @@ QGroupBox {{
     background-color: {BG_CARD};
     border: 1px solid {BORDER};
     border-radius: {RADIUS_SM};
-    margin-top: 10px;
+    margin-top: 22px;
     padding: 8px;
-    padding-top: 14px;
+    padding-top: 8px;
     font-weight: 600;
     font-size: {FONT_SIZE_SM};
 }}
@@ -370,11 +370,13 @@ QGroupBox {{
 QGroupBox::title {{
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 2px 8px;
-    color: {TEXT_PRIMARY};
+    left: 8px;
+    top: 2px;
+    padding: 0px;
+    color: {TEXT_SECONDARY};
     font-size: {FONT_SIZE_SM};
     text-transform: uppercase;
-    background-color: {BG_CARD};
+    background-color: transparent;
 }}
 
 /* ── Scroll Bars ──────────────────────────────────────────────────────── */
