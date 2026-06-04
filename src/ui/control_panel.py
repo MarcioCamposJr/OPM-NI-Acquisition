@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 
+from src.ui.sensor_panel import SensorPanel
 from src.ui.styles import (
     ACCENT_RECORD,
     ACCENT_INFO,
@@ -79,6 +80,7 @@ class ControlPanel(QWidget):
     save_toggled = pyqtSignal(bool)
     export_clicked = pyqtSignal()
     settings_clicked = pyqtSignal()
+    manage_sensors_clicked = pyqtSignal()
     ica_clicked = pyqtSignal()
     sample_rate_changed = pyqtSignal(float)
     window_seconds_changed = pyqtSignal(float)
@@ -125,6 +127,11 @@ class ControlPanel(QWidget):
         status_layout.addWidget(self._status_label)
 
         layout.addWidget(status_group)
+
+        # ── Sensors ───────────────────────────────────────────────────── #
+        self.sensor_panel = SensorPanel()
+        self.sensor_panel.manage_clicked.connect(self.manage_sensors_clicked.emit)
+        layout.addWidget(self.sensor_panel)
 
         # ── Acquisition controls ──────────────────────────────────────── #
         acq_group = QGroupBox("CONTROL")

@@ -42,6 +42,17 @@ LED_RUNNING = "#3D8B37"
 LED_RECORDING = "#C0392B"
 LED_ERROR = "#E74C3C"
 
+# Sensor status colors
+SENSOR_ONLINE = "#3D8B37"
+SENSOR_WARMING = "#D4A017"
+SENSOR_OFFLINE = "#70788A"
+SENSOR_ERROR = "#E74C3C"
+
+# Wizard step colors  
+WIZARD_DONE = "#3D8B37"
+WIZARD_ACTIVE = "#5B9BD5"
+WIZARD_PENDING = "#4A5263"
+
 # ── Channel colour palette (24 distinct, muted scientific tones) ─────────── #
 
 CHANNEL_COLORS: list[str] = [
@@ -426,5 +437,40 @@ QFormLayout QLabel {{
     color: {TEXT_SECONDARY};
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}}
+
+/* ── Sensor & Wizard Styles ───────────────────────────────────────────── */
+QFrame.sensor-card {{
+    background-color: {BG_CARD};
+    border: 1px solid {BORDER};
+    border-radius: {RADIUS_MD};
+}}
+QFrame.sensor-card:hover {{
+    border-color: {BORDER_LIGHT};
+}}
+QLabel.sensor-led {{
+    border-radius: 5px;
+    background-color: {LED_OFF};
+    min-width: 10px;
+    min-height: 10px;
+    max-width: 10px;
+    max-height: 10px;
+}}
+QFrame.wizard-step {{
+    background-color: {BG_CARD};
+    border: 1px solid {BORDER};
+    border-radius: {RADIUS_MD};
+    padding: 16px;
+}}
+QProgressBar.wizard-progress {{
+    border: 1px solid {BORDER};
+    border-radius: {RADIUS_SM};
+    text-align: center;
+    background-color: {BG_INPUT};
+    color: {TEXT_PRIMARY};
+}}
+QProgressBar.wizard-progress::chunk {{
+    background-color: {ACCENT_PRIMARY};
+    width: 10px;
 }}
 """

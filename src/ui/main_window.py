@@ -30,6 +30,9 @@ from src.hardware.daq_worker import DaqWorker
 from src.processing.opm_processor import OpmProcessor
 from src.data.tdms_recorder import TdmsRecorder
 from src.data.exporter import DataExporter
+from src.hardware.sensor_manager import SensorManager
+from src.hardware.sensor_worker import SensorWorker
+from src.ui.sensor_dialog import SensorDialog
 from src.ui.chart_widget import ChartWidget
 from src.ui.control_panel import ControlPanel
 from src.ui.settings_dialog import SettingsDialog
@@ -66,12 +69,20 @@ class MainWindow(QMainWindow):
         self._recorder = TdmsRecorder()
         self._exporter = DataExporter()
         self._ica_window: IcaWindow | None = None
+        self._sensor_dialog: SensorDialog | None = None
 
         # Accumulator for export (keeps filtered data while acquiring).
         self._export_buffer: list[np.ndarray] = []
-
-        # ── Load persisted settings ───────────────────────────────────── #
+        
+        # Sensor Integration
+        self._sensor_manager = SensorManager()
+        self._sensor_worker = SensorWorker(self._sensor_manager)
+        
+        # Load persisted settings 
         self._apply_persisted_settings()
+        
+        # Start SensorWorker
+        self._sensor_worker.start_worker()
 
         # ── UI construction ───────────────────────────────────────────── #
         self._build_ui()
@@ -121,9 +132,12 @@ class MainWindow(QMainWindow):
         cp.save_toggled.connect(self._toggle_recording)
         cp.export_clicked.connect(self._export_data)
         cp.settings_clicked.connect(self._open_settings)
+        cp.manage_sensors_clicked.connect(self._open_sensors)
         cp.ica_clicked.connect(self._open_ica)
         cp.sample_rate_changed.connect(self._on_sample_rate_changed)
         cp.window_seconds_changed.connect(self._on_window_changed)
+        
+        self._sensor_worker.status_updated.connect(cp.sensor_panel.update_sensor)
 
     # ── Acquisition start / stop ──────────────────────────────────────── #
 
@@ -309,6 +323,14 @@ class MainWindow(QMainWindow):
         self._ica_window.raise_()
         self._ica_window.activateWindow()
 
+    def _open_sensors(self) -> None:
+        """Open the Sensor Management Dialog."""
+        if self._sensor_dialog is None:
+            self._sensor_dialog = SensorDialog(self._sensor_manager, self._sensor_worker, self)
+        self._sensor_dialog.show()
+        self._sensor_dialog.raise_()
+        self._sensor_dialog.activateWindow()
+
     def _open_settings(self) -> None:
         """Open the settings dialog."""
         dialog = SettingsDialog(daq_config=self._daq_config, parent=self)
@@ -372,6 +394,8 @@ class MainWindow(QMainWindow):
         elif isinstance(active_channels, list):
             active_channels = [int(x) for x in active_channels]
         self._daq_config.active_channels = active_channels
+        
+        self._sensor_manager.load_config(s)
 
     # ── Window lifecycle ──────────────────────────────────────────────── #
 
@@ -382,4 +406,10 @@ class MainWindow(QMainWindow):
             self._daq_worker.wait(3000)
         if self._recorder.is_recording:
             self._recorder.stop()
+            
+        s = QSettings("OPM", "OPM-Acquisition")
+        self._sensor_manager.save_config(s)
+        self._sensor_worker.stop_worker()
+        self._sensor_manager.disconnect_all()
+        
         event.accept()
