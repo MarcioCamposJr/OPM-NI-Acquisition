@@ -48,9 +48,16 @@ class MockQZFM:
         }
         
         class MockSerial:
+            def __init__(self, parent):
+                self.parent = parent
             def write(self, data: bytes):
-                pass
-        self.ser = MockSerial()
+                if data == b'>':
+                    self.parent._auto_start_time = time.time()
+                    self.parent.led["laser on (LED1)"] = True
+                    self.parent.messages.append(("Auto Start triggered via serial", time.time()))
+
+        self.ser = MockSerial(self)
+        self._auto_start_time = None
         
         self.messages = []
         self._start_time = time.time()
@@ -121,6 +128,14 @@ class MockQZFM:
         self.status_last_updated = time.time()
         import math
         import random
+        
+        if self._auto_start_time is not None:
+            elapsed = time.time() - self._auto_start_time
+            if elapsed > 2.0:
+                self.led["laser lock (LED3)"] = True
+            if elapsed > 4.0:
+                self.led["cell temp lock (LED2)"] = True
+                
         if self.led["cell temp lock (LED2)"]:
             self.sensor_par["cell temp error"] = 0.0001 * math.sin(time.time())
             self.sensor_par["cell temp voltage"] = 3100 + int(10 * math.sin(time.time() / 5))
