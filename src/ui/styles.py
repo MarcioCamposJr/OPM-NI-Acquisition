@@ -337,10 +337,9 @@ QTabBar::tab:hover:!selected {{
 
 /* ── Check Boxes ──────────────────────────────────────────────────────── */
 QCheckBox {{
-    spacing: 6px;
+    spacing: 8px;
     background: transparent;
     font-size: {FONT_SIZE_MD};
-    min-height: 20px;
 }}
 
 QCheckBox::indicator {{
@@ -434,6 +433,32 @@ QFormLayout QLabel {{
     font-size: {FONT_SIZE_SM};
     color: {TEXT_SECONDARY};
     text-transform: uppercase;
+}}
+
+/* ── List Widget ──────────────────────────────────────────────────────── */
+QListWidget {{
+    background-color: {BG_CARD};
+    border: 1px solid {BORDER};
+    border-radius: {RADIUS_MD};
+    padding: 4px;
+    outline: none;
+}}
+
+QListWidget::item {{
+    padding: 8px 12px;
+    border-radius: {RADIUS_SM};
+    color: {TEXT_BRIGHT};
+    font-size: {FONT_SIZE_MD};
+    font-weight: 500;
+}}
+
+QListWidget::item:selected {{
+    background-color: {ACCENT_PRIMARY};
+    color: {TEXT_PRIMARY};
+}}
+
+QListWidget::item:hover:!selected {{
+    background-color: {BG_HOVER};
 }}
 
 /* ── Sensor & Wizard Styles ───────────────────────────────────────────── */

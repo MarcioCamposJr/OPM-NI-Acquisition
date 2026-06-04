@@ -71,16 +71,16 @@ class SensorDialog(QDialog):
         # ── Left pane: List of sensors ──────────────────────────────────────── #
         left_pane = QWidget()
         left_layout = QVBoxLayout(left_pane)
-        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setContentsMargins(10, 10, 10, 10)
         
         self.list_sensors = QListWidget()
         self.list_sensors.currentRowChanged.connect(self._on_sensor_selected)
         left_layout.addWidget(self.list_sensors)
         
         btn_layout = QHBoxLayout()
-        self.btn_add = QPushButton("+ Add")
+        self.btn_add = QPushButton("ADD")
         self.btn_add.clicked.connect(self._on_add_sensor)
-        self.btn_remove = QPushButton("- Remove")
+        self.btn_remove = QPushButton("REMOVE")
         self.btn_remove.clicked.connect(self._on_remove_sensor)
         btn_layout.addWidget(self.btn_add)
         btn_layout.addWidget(self.btn_remove)
@@ -91,7 +91,7 @@ class SensorDialog(QDialog):
         # ── Right pane: Details ────────────────────────────────────────────── #
         self.right_pane = QWidget()
         right_layout = QVBoxLayout(self.right_pane)
-        right_layout.setContentsMargins(10, 0, 0, 0)
+        right_layout.setContentsMargins(10, 10, 10, 10)
         
         # Wizard banner
         wizard_banner = QGroupBox("CALIBRAÇÃO GUIADA")
@@ -143,6 +143,7 @@ class SensorDialog(QDialog):
         
         # LEDs Container
         led_container = QWidget()
+        led_container.setStyleSheet("background-color: transparent;")
         led_layout = QHBoxLayout(led_container)
         led_layout.setContentsMargins(0, 0, 0, 0)
         led_layout.setSpacing(8)
