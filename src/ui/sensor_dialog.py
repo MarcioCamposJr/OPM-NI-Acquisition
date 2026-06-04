@@ -141,7 +141,26 @@ class SensorDialog(QDialog):
         status_group = QGroupBox("STATUS EM TEMPO REAL")
         sf = QFormLayout(status_group)
         
-        self.lbl_leds = QLabel()
+        # LEDs Container
+        led_container = QWidget()
+        led_layout = QHBoxLayout(led_container)
+        led_layout.setContentsMargins(0, 0, 0, 0)
+        led_layout.setSpacing(8)
+        
+        self.led_laser = QLabel("Lsr On")
+        self.led_temp = QLabel("Tmp Lck")
+        self.led_lock = QLabel("Lsr Lck")
+        self.led_zero = QLabel("Fld Zro")
+        
+        self._leds = [self.led_laser, self.led_temp, self.led_lock, self.led_zero]
+        for led in self._leds:
+            led.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            led.setFixedSize(55, 20)
+            led.setStyleSheet(f"background-color: {BG_INPUT}; color: {TEXT_SECONDARY}; border-radius: 10px; font-size: 10px;")
+            led_layout.addWidget(led)
+            
+        led_layout.addStretch()
+        
         self.lbl_b0 = QLabel()
         self.lbl_bz = QLabel()
         self.lbl_temp_err = QLabel()
@@ -149,7 +168,7 @@ class SensorDialog(QDialog):
         for lbl in (self.lbl_b0, self.lbl_bz, self.lbl_temp_err):
             lbl.setStyleSheet(f"font-family: {FONT_MONO};")
             
-        sf.addRow("LEDs Lock:", self.lbl_leds)
+        sf.addRow("LEDs Lock:", led_container)
         sf.addRow("B0 Field:", self.lbl_b0)
         sf.addRow("Bz Field:", self.lbl_bz)
         sf.addRow("Temp Error:", self.lbl_temp_err)
@@ -175,6 +194,14 @@ class SensorDialog(QDialog):
         self.btn_auto_start = QPushButton("Auto Start")
         self.btn_auto_start.clicked.connect(self._on_auto_start)
         al.addWidget(self.btn_auto_start)
+        
+        self.btn_calibrate = QPushButton("Calibrate")
+        self.btn_calibrate.clicked.connect(self._on_calibrate)
+        al.addWidget(self.btn_calibrate)
+        
+        self.btn_reboot = QPushButton("Reboot")
+        self.btn_reboot.clicked.connect(self._on_reboot)
+        al.addWidget(self.btn_reboot)
         
         tc_layout.addWidget(actions_group)
         tc_layout.addStretch()
@@ -311,13 +338,17 @@ class SensorDialog(QDialog):
         self.chk_master.setChecked(info.is_master)
         self.chk_master.blockSignals(False)
         
-        led_text = []
-        if info.laser_on: led_text.append("LsrOn")
-        if info.cell_temp_locked: led_text.append("TmpLck")
-        if info.laser_locked: led_text.append("LsrLck")
-        if info.field_zeroed: led_text.append("FldZro")
+        def _update_led(lbl: QLabel, active: bool):
+            if active:
+                lbl.setStyleSheet(f"background-color: {ACCENT_PRIMARY}; color: {TEXT_PRIMARY}; border-radius: 10px; font-weight: bold; font-size: 10px;")
+            else:
+                lbl.setStyleSheet(f"background-color: {BG_INPUT}; color: {TEXT_SECONDARY}; border-radius: 10px; font-size: 10px;")
+                
+        _update_led(self.led_laser, info.laser_on)
+        _update_led(self.led_temp, info.cell_temp_locked)
+        _update_led(self.led_lock, info.laser_locked)
+        _update_led(self.led_zero, info.field_zeroed)
         
-        self.lbl_leds.setText(" | ".join(led_text) if led_text else "None")
         self.lbl_b0.setText(f"{info.b0_field:.2f} pT")
         self.lbl_bz.setText(f"{info.bz_field:.2f} pT")
         self.lbl_temp_err.setText(f"{info.cell_temp_error:.4f}")
@@ -327,6 +358,8 @@ class SensorDialog(QDialog):
             self.btn_zero.setEnabled(True)
             self.btn_reset.setEnabled(True)
             self.btn_auto_start.setEnabled(True)
+            self.btn_calibrate.setEnabled(True)
+            self.btn_reboot.setEnabled(True)
             self.btn_wizard.setEnabled(True)
             self.chk_stream.setEnabled(True)
         else:
@@ -334,6 +367,8 @@ class SensorDialog(QDialog):
             self.btn_zero.setEnabled(False)
             self.btn_reset.setEnabled(False)
             self.btn_auto_start.setEnabled(False)
+            self.btn_calibrate.setEnabled(False)
+            self.btn_reboot.setEnabled(False)
             self.btn_wizard.setEnabled(False)
             self.chk_stream.setEnabled(False)
             self.chk_stream.setChecked(False)
@@ -414,6 +449,18 @@ class SensorDialog(QDialog):
         s_id = self._current_sensor_id()
         if s_id:
             self.worker.queue_command(s_id, SensorCommand.AUTO_START)
+            
+    def _on_calibrate(self):
+        s_id = self._current_sensor_id()
+        if s_id:
+            self.worker.queue_command(s_id, SensorCommand.CALIBRATE)
+            
+    def _on_reboot(self):
+        s_id = self._current_sensor_id()
+        if s_id:
+            reply = QMessageBox.question(self, "Confirmar Reboot", f"Reiniciar o sensor {s_id}?\nA comunicação será interrompida temporariamente.")
+            if reply == QMessageBox.StandardButton.Yes:
+                self.worker.queue_command(s_id, SensorCommand.REBOOT)
             
     def _on_run_wizard(self):
         s_id = self._current_sensor_id()
