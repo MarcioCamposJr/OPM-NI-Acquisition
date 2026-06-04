@@ -269,6 +269,10 @@ class SensorDialog(QDialog):
         self.btn_close.clicked.connect(self.accept)
         layout.addWidget(self.btn_close, alignment=Qt.AlignmentFlag.AlignRight)
         
+        # Disable auto default on all buttons to prevent Enter key in QLineEdit from triggering them
+        for btn in self.findChildren(QPushButton):
+            btn.setAutoDefault(False)
+        
     def _connect_signals(self):
         self.worker.status_updated.connect(self._on_status_updated)
         self.worker.zeroing_data.connect(self._on_zeroing_data)
