@@ -5,6 +5,7 @@ import logging
 from enum import Enum
 import time
 from typing import TYPE_CHECKING
+import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal, QWaitCondition, QMutex
 
 if TYPE_CHECKING:
@@ -24,6 +25,8 @@ class SensorCommand(Enum):
     SET_MASTER = "set_master"
     REBOOT = "reboot"
     UPDATE_STATUS = "update_status"
+    START_STREAMING = "start_streaming"
+    STOP_STREAMING = "stop_streaming"
 
 class SensorWorker(QThread):
     progress = pyqtSignal(str, str)          # (sensor_id, message)
@@ -31,6 +34,8 @@ class SensorWorker(QThread):
     command_finished = pyqtSignal(str, str, bool)  # (sensor_id, command_name, success)
     error_occurred = pyqtSignal(str, str)    # (sensor_id, error message)
     zeroing_data = pyqtSignal(str, float, float, float, float) # (sensor_id, bz, by, b0, t_err)
+    data_received = pyqtSignal(str, object, object) # (sensor_id, times, fields)
+    log_received = pyqtSignal(str, str) # (sensor_id, message)
 
     def __init__(self, manager: SensorManager, parent=None):
         super().__init__(parent)
@@ -41,6 +46,7 @@ class SensorWorker(QThread):
         self._running = False
         self._polling_interval = 2.0  # seconds between status updates
         self._zeroing_tasks: set[str] = set()
+        self._streaming_tasks: dict[str, str] = {}  # sensor_id -> axis
 
     def start_worker(self):
         self._running = True
@@ -81,7 +87,7 @@ class SensorWorker(QThread):
 
             if not self._queue:
                 # Wait for commands, or timeout to do polling
-                timeout_ms = 500 if self._zeroing_tasks else int(self._polling_interval * 1000)
+                timeout_ms = 100 if self._streaming_tasks else (500 if self._zeroing_tasks else int(self._polling_interval * 1000))
                 self._cond.wait(self._mutex, timeout_ms)
                 
             if not self._running:
@@ -110,7 +116,19 @@ class SensorWorker(QThread):
             # Emit zeroing data
             self._mutex.lock()
             active_zeroing = list(self._zeroing_tasks)
+            active_streaming = dict(self._streaming_tasks)
             self._mutex.unlock()
+            
+            # Process streaming
+            for s_id, axis in active_streaming.items():
+                sensor = self._manager.get_sensor(s_id)
+                if sensor:
+                    try:
+                        times, fields = sensor.read_data(seconds=0.1, axis=axis, clear_buffer=False)
+                        if len(times) > 0:
+                            self.data_received.emit(s_id, np.array(times), np.array(fields))
+                    except Exception as e:
+                        logger.debug(f"Streaming error on {s_id}: {e}")
             
             for s_id in active_zeroing:
                 sensor = self._manager.get_sensor(s_id)
@@ -139,8 +157,29 @@ class SensorWorker(QThread):
         elif command == SensorCommand.UPDATE_STATUS:
             sensor = self._manager.get_sensor(sensor_id)
             if sensor:
-                sensor.update_status()
+                if sensor_id not in self._streaming_tasks:
+                    sensor.update_status()
                 self._emit_status(sensor_id)
+
+        elif command == SensorCommand.START_STREAMING:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                axis = kwargs.get('axis', 'z')
+                self._mutex.lock()
+                self._streaming_tasks[sensor_id] = axis
+                self._mutex.unlock()
+                
+        elif command == SensorCommand.STOP_STREAMING:
+            self._mutex.lock()
+            if sensor_id in self._streaming_tasks:
+                del self._streaming_tasks[sensor_id]
+            self._mutex.unlock()
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor and sensor.is_data_streaming:
+                try:
+                    sensor._set_data_stream(False)
+                except Exception:
+                    pass
 
         elif command == SensorCommand.FIELD_ZERO_START:
             sensor = self._manager.get_sensor(sensor_id)
@@ -284,7 +323,7 @@ class SensorWorker(QThread):
 
     def _poll_sensors(self):
         for s_id, sensor in self._manager._sensors.items():
-            if s_id not in self._zeroing_tasks:
+            if s_id not in self._zeroing_tasks and s_id not in self._streaming_tasks:
                 try:
                     sensor.update_status(clear_buffer=False)
                     self._emit_status(s_id)
@@ -293,4 +332,14 @@ class SensorWorker(QThread):
 
     def _emit_status(self, sensor_id: str):
         info = self._manager.get_info(sensor_id)
+        
+        # Emit new logs
+        if info.messages:
+            idx_key = f"_log_idx_{sensor_id}"
+            last_idx = getattr(self, idx_key, 0)
+            if len(info.messages) > last_idx:
+                for msg_txt, _ in info.messages[last_idx:]:
+                    self.log_received.emit(sensor_id, msg_txt)
+                setattr(self, idx_key, len(info.messages))
+                
         self.status_updated.emit(sensor_id, info)

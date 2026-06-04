@@ -101,12 +101,12 @@ class ControlPanel(QWidget):
         layout.setSpacing(8)
 
         # ── Header ────────────────────────────────────────────────────── #
-        title = QLabel("OPM ACQUISITION")
+        title = QLabel("OPM CONTROL SYSTEM")
         title.setObjectName("title")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
-        device_lbl = QLabel("cDAQ-9171  |  24 CH")
+        device_lbl = QLabel("Sensors & DAQ")
         device_lbl.setObjectName("subtitle")
         device_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(device_lbl)
@@ -133,8 +133,8 @@ class ControlPanel(QWidget):
         self.sensor_panel.manage_clicked.connect(self.manage_sensors_clicked.emit)
         layout.addWidget(self.sensor_panel)
 
-        # ── Acquisition controls ──────────────────────────────────────── #
-        acq_group = QGroupBox("CONTROL")
+        # ── DAQ controls ──────────────────────────────────────── #
+        acq_group = QGroupBox("DAQ CONTROL")
         acq_layout = QVBoxLayout(acq_group)
         acq_layout.setSpacing(6)
 
@@ -142,12 +142,12 @@ class ControlPanel(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(4)
 
-        self._btn_start = QPushButton("START")
+        self._btn_start = QPushButton("DAQ START")
         self._btn_start.setObjectName("btn_start")
         self._btn_start.clicked.connect(self.start_clicked.emit)
         btn_row.addWidget(self._btn_start)
 
-        self._btn_stop = QPushButton("STOP")
+        self._btn_stop = QPushButton("DAQ STOP")
         self._btn_stop.setObjectName("btn_stop")
         self._btn_stop.setEnabled(False)
         self._btn_stop.clicked.connect(self.stop_clicked.emit)
@@ -157,8 +157,8 @@ class ControlPanel(QWidget):
 
         layout.addWidget(acq_group)
 
-        # ── Recording controls ────────────────────────────────────────── #
-        rec_group = QGroupBox("RECORDING")
+        # ── Logging controls ────────────────────────────────────────── #
+        rec_group = QGroupBox("DATA LOGGING")
         rec_layout = QVBoxLayout(rec_group)
         rec_layout.setSpacing(6)
 

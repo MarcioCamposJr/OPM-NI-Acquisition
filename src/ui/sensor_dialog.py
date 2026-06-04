@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import numpy as np
+import pyqtgraph as pg
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtWidgets import (
     QDialog,
@@ -19,7 +21,9 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QMessageBox,
     QLineEdit,
-    QCheckBox
+    QCheckBox,
+    QTabWidget,
+    QPlainTextEdit
 )
 
 from src.hardware.sensor_manager import SensorManager, SensorInfo
@@ -29,9 +33,12 @@ from src.ui.zeroing_window import ZeroingWindow
 from src.ui.styles import (
     BG_DARKEST,
     BG_CARD,
+    BG_INPUT,
+    BORDER,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
     ACCENT_PRIMARY,
+    LED_IDLE,
     FONT_MONO
 )
 
@@ -44,8 +51,14 @@ class SensorDialog(QDialog):
         self.worker = worker
         self._zeroing_windows: dict[str, ZeroingWindow] = {}
         
-        self.setWindowTitle("QZFM Sensor Management")
-        self.setMinimumSize(700, 500)
+        # Plot streaming state
+        self._is_streaming = False
+        self._time_buffer = np.array([])
+        self._field_buffer = np.array([])
+        self._window_seconds = 10.0
+        
+        self.setWindowTitle("OPM Sensor Management")
+        self.setMinimumSize(850, 600)
         self._setup_ui()
         self._connect_signals()
         self._populate_list()
@@ -55,7 +68,7 @@ class SensorDialog(QDialog):
         
         splitter = QSplitter(Qt.Orientation.Horizontal)
         
-        # Left pane: List of sensors
+        # ── Left pane: List of sensors ──────────────────────────────────────── #
         left_pane = QWidget()
         left_layout = QVBoxLayout(left_pane)
         left_layout.setContentsMargins(0, 0, 0, 0)
@@ -75,7 +88,7 @@ class SensorDialog(QDialog):
         
         splitter.addWidget(left_pane)
         
-        # Right pane: Details
+        # ── Right pane: Details ────────────────────────────────────────────── #
         self.right_pane = QWidget()
         right_layout = QVBoxLayout(self.right_pane)
         right_layout.setContentsMargins(10, 0, 0, 0)
@@ -97,6 +110,14 @@ class SensorDialog(QDialog):
         
         right_layout.addWidget(wizard_banner)
         
+        # TABS
+        self.tabs = QTabWidget()
+        right_layout.addWidget(self.tabs)
+        
+        # ── Tab 1: Control & Status ──
+        tab_control = QWidget()
+        tc_layout = QVBoxLayout(tab_control)
+        
         # Details group
         details_group = QGroupBox("DETALHES DO SENSOR")
         form = QFormLayout(details_group)
@@ -114,10 +135,10 @@ class SensorDialog(QDialog):
         form.addRow("Nome:", self.edit_name)
         form.addRow("Sincronização:", self.chk_master)
         
-        right_layout.addWidget(details_group)
+        tc_layout.addWidget(details_group)
         
         # Status group
-        status_group = QGroupBox("STATUS")
+        status_group = QGroupBox("STATUS EM TEMPO REAL")
         sf = QFormLayout(status_group)
         
         self.lbl_leds = QLabel()
@@ -133,7 +154,7 @@ class SensorDialog(QDialog):
         sf.addRow("Bz Field:", self.lbl_bz)
         sf.addRow("Temp Error:", self.lbl_temp_err)
         
-        right_layout.addWidget(status_group)
+        tc_layout.addWidget(status_group)
         
         # Manual Actions
         actions_group = QGroupBox("CONTROLE MANUAL")
@@ -151,13 +172,64 @@ class SensorDialog(QDialog):
         self.btn_reset.clicked.connect(self._on_reset)
         al.addWidget(self.btn_reset)
         
-        right_layout.addWidget(actions_group)
-        right_layout.addStretch()
+        tc_layout.addWidget(actions_group)
+        tc_layout.addStretch()
         
+        self.tabs.addTab(tab_control, "Status & Controle")
+        
+        # ── Tab 2: Signal Monitor (Pyqtgraph) ──
+        tab_monitor = QWidget()
+        tm_layout = QVBoxLayout(tab_monitor)
+        
+        stream_ctrls = QHBoxLayout()
+        stream_ctrls.addWidget(QLabel("Leitura do Eixo:"))
+        self.cmb_axis = QComboBox()
+        self.cmb_axis.addItems(["z", "y", "x"])
+        stream_ctrls.addWidget(self.cmb_axis)
+        
+        self.chk_stream = QCheckBox("ATIVAR STREAMING (Serial)")
+        self.chk_stream.clicked.connect(self._on_stream_toggled)
+        stream_ctrls.addWidget(self.chk_stream)
+        stream_ctrls.addStretch()
+        
+        tm_layout.addLayout(stream_ctrls)
+        
+        self.plot_widget = pg.PlotWidget()
+        self.plot_widget.setBackground(BG_DARKEST)
+        self.plot_widget.showGrid(x=True, y=True, alpha=0.25)
+        self.plot_widget.setLabel("left", "Magnetic Field", units="pT")
+        self.plot_widget.setLabel("bottom", "Time", units="s")
+        self.plot_widget.setXRange(-self._window_seconds, 0)
+        
+        ax_left = self.plot_widget.getAxis("left")
+        ax_bottom = self.plot_widget.getAxis("bottom")
+        ax_left.setPen(pg.mkPen(color=BORDER, width=1))
+        ax_bottom.setPen(pg.mkPen(color=BORDER, width=1))
+        
+        self.curve = self.plot_widget.plot(pen=pg.mkPen(color=LED_IDLE, width=1.5))
+        tm_layout.addWidget(self.plot_widget)
+        
+        self.tabs.addTab(tab_monitor, "Signal Monitor")
+        
+        # ── Tab 3: Diagnostic Logs ──
+        tab_logs = QWidget()
+        tl_layout = QVBoxLayout(tab_logs)
+        
+        self.txt_log = QPlainTextEdit()
+        self.txt_log.setReadOnly(True)
+        self.txt_log.setFont(pg.QtGui.QFont(FONT_MONO, 9))
+        self.txt_log.setStyleSheet(
+            f"background-color: {BG_INPUT}; border: 1px solid {BORDER}; color: {TEXT_PRIMARY};"
+        )
+        tl_layout.addWidget(self.txt_log)
+        
+        self.tabs.addTab(tab_logs, "Diagnostic Logs")
+        
+        # ── Finish layout ──
         splitter.addWidget(self.right_pane)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([200, 500])
+        splitter.setSizes([200, 650])
         
         layout.addWidget(splitter)
         
@@ -168,6 +240,8 @@ class SensorDialog(QDialog):
     def _connect_signals(self):
         self.worker.status_updated.connect(self._on_status_updated)
         self.worker.zeroing_data.connect(self._on_zeroing_data)
+        self.worker.data_received.connect(self._on_data_received)
+        self.worker.log_received.connect(self._on_log_received)
         
     def _populate_list(self):
         self.list_sensors.clear()
@@ -196,11 +270,23 @@ class SensorDialog(QDialog):
             
         self.right_pane.setEnabled(True)
         info = self.manager.get_info(s_id)
+        
+        # Reset streaming state when switching sensors
+        self.chk_stream.setChecked(False)
+        self._on_stream_toggled(False)
+        self._time_buffer = np.array([])
+        self._field_buffer = np.array([])
+        self.curve.setData([], [])
+        
+        # Load logs for this sensor
+        self.txt_log.clear()
+        for msg, _ in info.messages:
+            self.txt_log.appendPlainText(msg)
+            
         self._update_details_pane(info)
         
     @pyqtSlot(str, object)
     def _on_status_updated(self, s_id: str, info: SensorInfo):
-        # Update list item text
         for i in range(self.list_sensors.count()):
             item = self.list_sensors.item(i)
             if item.data(Qt.ItemDataRole.UserRole) == s_id:
@@ -221,7 +307,6 @@ class SensorDialog(QDialog):
         self.chk_master.setChecked(info.is_master)
         self.chk_master.blockSignals(False)
         
-        # Status
         led_text = []
         if info.laser_on: led_text.append("LsrOn")
         if info.cell_temp_locked: led_text.append("TmpLck")
@@ -233,20 +318,21 @@ class SensorDialog(QDialog):
         self.lbl_bz.setText(f"{info.bz_field:.2f} pT")
         self.lbl_temp_err.setText(f"{info.cell_temp_error:.4f}")
         
-        # Buttons
         if info.connected:
             self.btn_connect.setText("Desconectar")
             self.btn_zero.setEnabled(True)
             self.btn_reset.setEnabled(True)
             self.btn_wizard.setEnabled(True)
+            self.chk_stream.setEnabled(True)
         else:
             self.btn_connect.setText("Conectar")
             self.btn_zero.setEnabled(False)
             self.btn_reset.setEnabled(False)
             self.btn_wizard.setEnabled(False)
+            self.chk_stream.setEnabled(False)
+            self.chk_stream.setChecked(False)
+            self._is_streaming = False
             
-    # --- Actions ---
-    
     def _on_add_sensor(self):
         ports = self.manager.list_available_ports()
         if not ports:
@@ -296,7 +382,6 @@ class SensorDialog(QDialog):
         s_id = self._current_sensor_id()
         if not s_id: return
         
-        # Check if already zeroing
         if s_id in self._zeroing_windows and self._zeroing_windows[s_id].isVisible():
             self.worker.queue_command(s_id, SensorCommand.FIELD_ZERO_STOP)
             self._zeroing_windows[s_id].close()
@@ -323,11 +408,51 @@ class SensorDialog(QDialog):
         s_id = self._current_sensor_id()
         if not s_id: return
         
+        # Stop streaming if running
+        if self.chk_stream.isChecked():
+            self.chk_stream.setChecked(False)
+            self._on_stream_toggled(False)
+            
         info = self.manager.get_info(s_id)
         wizard = CalibrationWizard(s_id, info.name, self.worker, self)
         wizard.exec()
         
+    def _on_stream_toggled(self, checked: bool):
+        s_id = self._current_sensor_id()
+        if not s_id: return
+        
+        self._is_streaming = checked
+        if checked:
+            axis = self.cmb_axis.currentText()
+            self._time_buffer = np.array([])
+            self._field_buffer = np.array([])
+            self.worker.queue_command(s_id, SensorCommand.START_STREAMING, axis=axis)
+        else:
+            self.worker.queue_command(s_id, SensorCommand.STOP_STREAMING)
+            
     @pyqtSlot(str, float, float, float, float)
     def _on_zeroing_data(self, s_id: str, bz: float, by: float, b0: float, t_err: float):
         if s_id in self._zeroing_windows and self._zeroing_windows[s_id].isVisible():
             self._zeroing_windows[s_id].update_data(s_id, bz, by, b0, t_err)
+
+    @pyqtSlot(str, object, object)
+    def _on_data_received(self, s_id: str, times: np.ndarray, fields: np.ndarray):
+        if s_id != self._current_sensor_id() or not self._is_streaming:
+            return
+            
+        self._time_buffer = np.concatenate([self._time_buffer, times])
+        self._field_buffer = np.concatenate([self._field_buffer, fields])
+
+        max_samples = int(self._window_seconds * 200)
+        if len(self._time_buffer) > max_samples:
+            self._time_buffer = self._time_buffer[-max_samples:]
+            self._field_buffer = self._field_buffer[-max_samples:]
+
+        if len(self._time_buffer) > 0:
+            rel_times = self._time_buffer - self._time_buffer[-1]
+            self.curve.setData(rel_times, self._field_buffer)
+            
+    @pyqtSlot(str, str)
+    def _on_log_received(self, s_id: str, message: str):
+        if s_id == self._current_sensor_id():
+            self.txt_log.appendPlainText(message)
