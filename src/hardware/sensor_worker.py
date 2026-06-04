@@ -1,0 +1,296 @@
+"""QThread-based worker for executing blocking QZFM operations."""
+
+from __future__ import annotations
+import logging
+from enum import Enum
+import time
+from typing import TYPE_CHECKING
+from PyQt6.QtCore import QThread, pyqtSignal, QWaitCondition, QMutex
+
+if TYPE_CHECKING:
+    from src.hardware.sensor_manager import SensorManager, SensorInfo
+
+logger = logging.getLogger(__name__)
+
+class SensorCommand(Enum):
+    CONNECT = "connect"
+    DISCONNECT = "disconnect"
+    AUTO_START = "auto_start"
+    FIELD_ZERO_START = "field_zero_start"
+    FIELD_ZERO_STOP = "field_zero_stop"
+    CALIBRATE = "calibrate"
+    FIELD_RESET = "field_reset"
+    SET_GAIN = "set_gain"
+    SET_MASTER = "set_master"
+    REBOOT = "reboot"
+    UPDATE_STATUS = "update_status"
+
+class SensorWorker(QThread):
+    progress = pyqtSignal(str, str)          # (sensor_id, message)
+    status_updated = pyqtSignal(str, object) # (sensor_id, SensorInfo snapshot)
+    command_finished = pyqtSignal(str, str, bool)  # (sensor_id, command_name, success)
+    error_occurred = pyqtSignal(str, str)    # (sensor_id, error message)
+    zeroing_data = pyqtSignal(str, float, float, float, float) # (sensor_id, bz, by, b0, t_err)
+
+    def __init__(self, manager: SensorManager, parent=None):
+        super().__init__(parent)
+        self._manager = manager
+        self._queue: list[tuple[str, SensorCommand, dict]] = []
+        self._mutex = QMutex()
+        self._cond = QWaitCondition()
+        self._running = False
+        self._polling_interval = 2.0  # seconds between status updates
+        self._zeroing_tasks: set[str] = set()
+
+    def start_worker(self):
+        self._running = True
+        self.start()
+
+    def stop_worker(self):
+        self._mutex.lock()
+        self._running = False
+        self._cond.wakeAll()
+        self._mutex.unlock()
+        self.wait(2000)
+
+    def queue_command(self, sensor_id: str, command: SensorCommand, **kwargs) -> None:
+        self._mutex.lock()
+        self._queue.append((sensor_id, command, kwargs))
+        self._cond.wakeAll()
+        self._mutex.unlock()
+
+    def set_polling_interval(self, seconds: float):
+        self._polling_interval = seconds
+        
+    def add_zeroing_task(self, sensor_id: str):
+        self._mutex.lock()
+        self._zeroing_tasks.add(sensor_id)
+        self._mutex.unlock()
+        
+    def remove_zeroing_task(self, sensor_id: str):
+        self._mutex.lock()
+        self._zeroing_tasks.discard(sensor_id)
+        self._mutex.unlock()
+
+    def run(self):
+        while True:
+            self._mutex.lock()
+            if not self._running:
+                self._mutex.unlock()
+                break
+
+            if not self._queue:
+                # Wait for commands, or timeout to do polling
+                timeout_ms = 500 if self._zeroing_tasks else int(self._polling_interval * 1000)
+                self._cond.wait(self._mutex, timeout_ms)
+                
+            if not self._running:
+                self._mutex.unlock()
+                break
+
+            # Process one command if available
+            command_item = None
+            if self._queue:
+                command_item = self._queue.pop(0)
+            self._mutex.unlock()
+
+            if command_item:
+                sensor_id, command, kwargs = command_item
+                try:
+                    self._execute_command(sensor_id, command, kwargs)
+                    self.command_finished.emit(sensor_id, command.value, True)
+                except Exception as e:
+                    logger.exception(f"Error executing {command.value} on {sensor_id}")
+                    self.error_occurred.emit(sensor_id, str(e))
+                    self.command_finished.emit(sensor_id, command.value, False)
+            else:
+                # Polling phase
+                self._poll_sensors()
+                
+            # Emit zeroing data
+            self._mutex.lock()
+            active_zeroing = list(self._zeroing_tasks)
+            self._mutex.unlock()
+            
+            for s_id in active_zeroing:
+                sensor = self._manager.get_sensor(s_id)
+                if sensor:
+                    try:
+                        sensor.update_status(clear_buffer=True)
+                        self.zeroing_data.emit(
+                            s_id,
+                            sensor.sensor_par.get('Bz field (pT)', 0.0),
+                            sensor.sensor_par.get('By field (pT)', 0.0),
+                            sensor.sensor_par.get('B0 field (pT)', 0.0),
+                            sensor.sensor_par.get('cell temp error', 0.0)
+                        )
+                    except Exception:
+                        pass
+
+    def _execute_command(self, sensor_id: str, command: SensorCommand, kwargs: dict):
+        if command == SensorCommand.CONNECT:
+            self._manager.connect_sensor(sensor_id)
+            self._emit_status(sensor_id)
+            
+        elif command == SensorCommand.DISCONNECT:
+            self._manager.disconnect_sensor(sensor_id)
+            self._emit_status(sensor_id)
+            
+        elif command == SensorCommand.UPDATE_STATUS:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                sensor.update_status()
+                self._emit_status(sensor_id)
+
+        elif command == SensorCommand.FIELD_ZERO_START:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                axes_xyz = kwargs.get('axes_xyz', True)
+                sensor.field_zero(on=True, axes_xyz=axes_xyz, show=False)
+                self.add_zeroing_task(sensor_id)
+                self._emit_status(sensor_id)
+
+        elif command == SensorCommand.FIELD_ZERO_STOP:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                sensor.field_zero(on=False, show=False)
+                self.remove_zeroing_task(sensor_id)
+                self._emit_status(sensor_id)
+                
+        elif command == SensorCommand.CALIBRATE:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                self.progress.emit(sensor_id, "Calibrando...")
+                sensor.calibrate(show=False)
+                self._emit_status(sensor_id)
+                
+        elif command == SensorCommand.FIELD_RESET:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                sensor.field_reset()
+                self._emit_status(sensor_id)
+
+        elif command == SensorCommand.SET_GAIN:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                mode = kwargs.get('mode', '1x')
+                sensor.set_gain(mode=mode)
+                config = self._manager.get_configs()[sensor_id]
+                config["gain"] = sensor.gain
+                self._emit_status(sensor_id)
+                
+        elif command == SensorCommand.SET_MASTER:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                is_master = kwargs.get('is_master', True)
+                sensor.set_master(master=is_master)
+                config = self._manager.get_configs()[sensor_id]
+                config["is_master"] = is_master
+                self._emit_status(sensor_id)
+                
+        elif command == SensorCommand.REBOOT:
+            sensor = self._manager.get_sensor(sensor_id)
+            if sensor:
+                sensor.reboot()
+                self._emit_status(sensor_id)
+
+        elif command == SensorCommand.AUTO_START:
+            sensor = self._manager.get_sensor(sensor_id)
+            if not sensor:
+                raise ValueError(f"Sensor {sensor_id} not connected")
+                
+            zero_calibrate = kwargs.get('zero_calibrate', True)
+            zero_cond = kwargs.get('zero_cond', 100)
+            
+            self.progress.emit(sensor_id, "Iniciando auto_start...")
+            sensor.ser.write(b'>')
+            sensor.update_status()
+            
+            self.progress.emit(sensor_id, "Aguardando laser lock e temp lock...")
+            
+            while not sensor.led.get("laser lock (LED3)") or not sensor.led.get("cell temp lock (LED2)"):
+                if not self._running:
+                    return
+                sensor.update_status(clear_buffer=False)
+                self._emit_status(sensor_id)
+                time.sleep(0.5)
+                
+            if zero_calibrate:
+                self.progress.emit(sensor_id, "Iniciando field zeroing...")
+                sensor.field_zero(on=True, show=False)
+                self.add_zeroing_task(sensor_id)
+                
+                x_comp, y_comp, z_comp, t = [], [], [], []
+                
+                # Wait for 6 initial readings
+                while len(x_comp) < 6:
+                    if not self._running:
+                        return
+                    sensor.update_status()
+                    t.append(sensor.status_last_updated)
+                    x_comp.append(sensor.sensor_par.get('B0 field (pT)', 0.0))
+                    y_comp.append(sensor.sensor_par.get('By field (pT)', 0.0))
+                    z_comp.append(sensor.sensor_par.get('Bz field (pT)', 0.0))
+                    self._emit_status(sensor_id)
+                    time.sleep(0.5)
+                    
+                zeroed = False
+                while not zeroed:
+                    if not self._running:
+                        return
+                    
+                    t_diff = [j-i for i, j in zip(t[-5:][:-1], t[-5:][1:])]
+                    x_diff = [j-i for i, j in zip(x_comp[-5:][:-1], x_comp[-5:][1:])]
+                    y_diff = [j-i for i, j in zip(y_comp[-5:][:-1], y_comp[-5:][1:])]
+                    z_diff = [j-i for i, j in zip(z_comp[-5:][:-1], z_comp[-5:][1:])]
+                    
+                    x_grad = [abs(i/j) if j > 0 else float('inf') for i, j in zip(x_diff, t_diff)]
+                    y_grad = [abs(i/j) if j > 0 else float('inf') for i, j in zip(y_diff, t_diff)]
+                    z_grad = [abs(i/j) if j > 0 else float('inf') for i, j in zip(z_diff, t_diff)]
+                    
+                    if all(x < zero_cond for x in x_grad) and all(y < zero_cond for y in y_grad) and all(z < zero_cond for z in z_grad):
+                        zeroed = True
+                    else:
+                        sensor.update_status()
+                        t.append(sensor.status_last_updated)
+                        x_comp.append(sensor.sensor_par.get('B0 field (pT)', 0.0))
+                        y_comp.append(sensor.sensor_par.get('By field (pT)', 0.0))
+                        z_comp.append(sensor.sensor_par.get('Bz field (pT)', 0.0))
+                        self._emit_status(sensor_id)
+                        time.sleep(0.5)
+                        
+                # Stop zeroing
+                sensor.field_zero(on=False, show=False)
+                self.remove_zeroing_task(sensor_id)
+                self.progress.emit(sensor_id, "Field zeroing concluído. Restaurando temp lock...")
+                
+                temp_err_ok = False
+                temp_err_last = float('inf')
+                while not temp_err_ok:
+                    if not self._running:
+                        return
+                    sensor.update_status()
+                    err = sensor.sensor_par.get('cell temp error', float('inf'))
+                    temp_err_ok = abs(err) <= 0.001 or abs(temp_err_last - err) <= 0.001
+                    temp_err_last = err
+                    self._emit_status(sensor_id)
+                    time.sleep(0.5)
+                    
+                self.progress.emit(sensor_id, "Calibrando...")
+                sensor.calibrate(show=False)
+                sensor.save_state()
+                self._emit_status(sensor_id)
+                self.progress.emit(sensor_id, "Auto-start concluído!")
+
+    def _poll_sensors(self):
+        for s_id, sensor in self._manager._sensors.items():
+            if s_id not in self._zeroing_tasks:
+                try:
+                    sensor.update_status(clear_buffer=False)
+                    self._emit_status(s_id)
+                except Exception as e:
+                    logger.debug(f"Polling error on {s_id}: {e}")
+
+    def _emit_status(self, sensor_id: str):
+        info = self._manager.get_info(sensor_id)
+        self.status_updated.emit(sensor_id, info)
