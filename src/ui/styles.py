@@ -340,6 +340,7 @@ QCheckBox {{
     spacing: 6px;
     background: transparent;
     font-size: {FONT_SIZE_MD};
+    min-height: 20px;
 }}
 
 QCheckBox::indicator {{
