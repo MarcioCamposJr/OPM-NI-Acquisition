@@ -73,6 +73,10 @@ class SensorDialog(QDialog):
         left_layout = QVBoxLayout(left_pane)
         left_layout.setContentsMargins(10, 10, 10, 10)
         
+        lbl_list_title = QLabel("OPM SENSORS")
+        lbl_list_title.setStyleSheet("font-weight: bold; font-size: 14px;")
+        left_layout.addWidget(lbl_list_title)
+        
         self.list_sensors = QListWidget()
         self.list_sensors.currentRowChanged.connect(self._on_sensor_selected)
         left_layout.addWidget(self.list_sensors)
@@ -184,21 +188,21 @@ class SensorDialog(QDialog):
         self.btn_connect.clicked.connect(self._on_connect_toggle)
         al.addWidget(self.btn_connect)
         
-        self.btn_zero = QPushButton("Field Zero")
-        self.btn_zero.clicked.connect(self._on_zero_toggle)
-        al.addWidget(self.btn_zero)
-        
-        self.btn_reset = QPushButton("Reset Field")
-        self.btn_reset.clicked.connect(self._on_reset)
-        al.addWidget(self.btn_reset)
-        
         self.btn_auto_start = QPushButton("Auto Start")
         self.btn_auto_start.clicked.connect(self._on_auto_start)
         al.addWidget(self.btn_auto_start)
         
+        self.btn_zero = QPushButton("Field Zero")
+        self.btn_zero.clicked.connect(self._on_zero_toggle)
+        al.addWidget(self.btn_zero)
+        
         self.btn_calibrate = QPushButton("Calibrate")
         self.btn_calibrate.clicked.connect(self._on_calibrate)
         al.addWidget(self.btn_calibrate)
+        
+        self.btn_reset = QPushButton("Reset Field")
+        self.btn_reset.clicked.connect(self._on_reset)
+        al.addWidget(self.btn_reset)
         
         self.btn_reboot = QPushButton("Reboot")
         self.btn_reboot.clicked.connect(self._on_reboot)
@@ -261,7 +265,7 @@ class SensorDialog(QDialog):
         splitter.addWidget(self.right_pane)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([200, 650])
+        splitter.setSizes([260, 590])
         
         layout.addWidget(splitter)
         
