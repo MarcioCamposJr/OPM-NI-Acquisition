@@ -54,7 +54,7 @@ class CalibrationWizard(QDialog):
         layout = QVBoxLayout(self)
         
         # Header / Progress
-        self.lbl_title = QLabel("Passo 1: Preparação")
+        self.lbl_title = QLabel("Step 1: Preparation")
         self.lbl_title.setStyleSheet("font-size: 16px; font-weight: bold;")
         layout.addWidget(self.lbl_title)
         
@@ -71,17 +71,17 @@ class CalibrationWizard(QDialog):
         # Page 0: Intro
         page0 = QWidget()
         l0 = QVBoxLayout(page0)
-        l0.addWidget(QLabel("Este assistente guiará você pelo processo de\ninicialização e calibração do sensor OPM."))
-        l0.addWidget(QLabel("Certifique-se de que o sensor está conectado\ne dentro do escudo magnético."))
+        l0.addWidget(QLabel("This wizard will guide you through the process of\ninitializing and calibrating the OPM sensor."))
+        l0.addWidget(QLabel("Make sure the sensor is connected\nand inside the magnetic shield."))
         l0.addStretch()
         self.stack.addWidget(page0)
         
         # Page 1: Auto Start
         page1 = QWidget()
         l1 = QVBoxLayout(page1)
-        l1.addWidget(QLabel("Ligando os lasers e aquecendo a célula..."))
-        l1.addWidget(QLabel("Isso pode levar alguns minutos."))
-        self.lbl_status1 = QLabel("Aguardando início...")
+        l1.addWidget(QLabel("Turning on lasers and heating the cell..."))
+        l1.addWidget(QLabel("This may take a few minutes."))
+        self.lbl_status1 = QLabel("Waiting to start...")
         self.lbl_status1.setStyleSheet(f"color: {TEXT_SECONDARY};")
         l1.addWidget(self.lbl_status1)
         l1.addStretch()
@@ -90,8 +90,8 @@ class CalibrationWizard(QDialog):
         # Page 2: Field Zero
         page2 = QWidget()
         l2 = QVBoxLayout(page2)
-        l2.addWidget(QLabel("Anulando o campo magnético residual..."))
-        self.lbl_status2 = QLabel("As bobinas internas estão otimizando o campo nulo.")
+        l2.addWidget(QLabel("Nulling residual magnetic field..."))
+        self.lbl_status2 = QLabel("Internal coils are optimizing the zero field.")
         l2.addWidget(self.lbl_status2)
         l2.addStretch()
         self.stack.addWidget(page2)
@@ -99,8 +99,8 @@ class CalibrationWizard(QDialog):
         # Page 3: Calibrate
         page3 = QWidget()
         l3 = QVBoxLayout(page3)
-        l3.addWidget(QLabel("Aplicando sinal de calibração..."))
-        self.lbl_status3 = QLabel("O sensor está ajustando o ganho V/nT.")
+        l3.addWidget(QLabel("Applying calibration signal..."))
+        self.lbl_status3 = QLabel("The sensor is adjusting the V/nT gain.")
         l3.addWidget(self.lbl_status3)
         l3.addStretch()
         self.stack.addWidget(page3)
@@ -108,8 +108,8 @@ class CalibrationWizard(QDialog):
         # Page 4: Done
         page4 = QWidget()
         l4 = QVBoxLayout(page4)
-        l4.addWidget(QLabel("✓ Calibração concluída com sucesso!"))
-        l4.addWidget(QLabel("O sensor está pronto para aquisição de dados."))
+        l4.addWidget(QLabel("✓ Calibration completed successfully!"))
+        l4.addWidget(QLabel("The sensor is ready for data acquisition."))
         l4.addStretch()
         self.stack.addWidget(page4)
         
@@ -117,13 +117,13 @@ class CalibrationWizard(QDialog):
         
         # Footer buttons
         btn_layout = QHBoxLayout()
-        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(self.btn_cancel)
         
         btn_layout.addStretch()
         
-        self.btn_next = QPushButton("Começar >")
+        self.btn_next = QPushButton("Start >")
         self.btn_next.clicked.connect(self._on_next)
         btn_layout.addWidget(self.btn_next)
         
@@ -152,7 +152,7 @@ class CalibrationWizard(QDialog):
             return
             
         if not success:
-            QMessageBox.critical(self, "Erro", f"Falha na operação: {cmd}")
+            QMessageBox.critical(self, "Error", f"Operation failed: {cmd}")
             self.btn_next.setEnabled(True)
             return
             
@@ -174,7 +174,7 @@ class CalibrationWizard(QDialog):
     def _on_worker_error(self, s_id: str, error: str):
         if s_id != self.sensor_id:
             return
-        self.lbl_status1.setText(f"Erro: {error}")
+        self.lbl_status1.setText(f"Error: {error}")
         self.lbl_status1.setStyleSheet(f"color: #E74C3C;")
         self.btn_next.setEnabled(True)
 
@@ -195,17 +195,17 @@ class CalibrationWizard(QDialog):
         self.stack.setCurrentIndex(self._current_step)
         
         titles = [
-            "Passo 1: Preparação",
-            "Passo 2: Aquecimento e Lock",
-            "Passo 3: Field Zeroing",
-            "Passo 4: Calibração",
-            "Concluído"
+            "Step 1: Preparation",
+            "Step 2: Heating and Lock",
+            "Step 3: Field Zeroing",
+            "Step 4: Calibration",
+            "Done"
         ]
         self.lbl_title.setText(titles[self._current_step])
         
         if self._current_step == 1:
-            self.btn_next.setText("Processando...")
+            self.btn_next.setText("Processing...")
         elif self._current_step == 4:
-            self.btn_next.setText("Concluir")
+            self.btn_next.setText("Finish")
             self.btn_next.setEnabled(True)
             self.btn_cancel.setEnabled(True)

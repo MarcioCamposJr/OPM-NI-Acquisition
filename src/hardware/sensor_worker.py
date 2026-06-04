@@ -199,7 +199,7 @@ class SensorWorker(QThread):
         elif command == SensorCommand.CALIBRATE:
             sensor = self._manager.get_sensor(sensor_id)
             if sensor:
-                self.progress.emit(sensor_id, "Calibrando...")
+                self.progress.emit(sensor_id, "Calibrating...")
                 sensor.calibrate(show=False)
                 self._emit_status(sensor_id)
                 
@@ -241,11 +241,11 @@ class SensorWorker(QThread):
             zero_calibrate = kwargs.get('zero_calibrate', True)
             zero_cond = kwargs.get('zero_cond', 100)
             
-            self.progress.emit(sensor_id, "Iniciando auto_start...")
+            self.progress.emit(sensor_id, "Starting auto_start...")
             sensor.ser.write(b'>')
             sensor.update_status()
             
-            self.progress.emit(sensor_id, "Aguardando laser lock e temp lock...")
+            self.progress.emit(sensor_id, "Waiting for laser lock and temp lock...")
             
             while not sensor.led.get("laser lock (LED3)") or not sensor.led.get("cell temp lock (LED2)"):
                 if not self._running:
@@ -255,7 +255,7 @@ class SensorWorker(QThread):
                 time.sleep(0.5)
                 
             if zero_calibrate:
-                self.progress.emit(sensor_id, "Iniciando field zeroing...")
+                self.progress.emit(sensor_id, "Starting field zeroing...")
                 sensor.field_zero(on=True, show=False)
                 self.add_zeroing_task(sensor_id)
                 

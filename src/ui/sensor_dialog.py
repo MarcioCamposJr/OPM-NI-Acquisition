@@ -94,15 +94,15 @@ class SensorDialog(QDialog):
         right_layout.setContentsMargins(10, 10, 10, 10)
         
         # Wizard banner
-        wizard_banner = QGroupBox("CALIBRAÇÃO GUIADA")
+        wizard_banner = QGroupBox("GUIDED CALIBRATION")
         wizard_banner.setStyleSheet(f"QGroupBox {{ border-left: 4px solid {ACCENT_PRIMARY}; }}")
         wl = QHBoxLayout(wizard_banner)
         
-        lbl_wizard = QLabel("Para usuários iniciantes, utilize o assistente para inicializar e calibrar.")
+        lbl_wizard = QLabel("For new users, use the wizard to initialize and calibrate.")
         lbl_wizard.setWordWrap(True)
         wl.addWidget(lbl_wizard)
         
-        self.btn_wizard = QPushButton("INICIAR WIZARD")
+        self.btn_wizard = QPushButton("START WIZARD")
         self.btn_wizard.setMinimumHeight(40)
         self.btn_wizard.setStyleSheet("font-weight: bold;")
         self.btn_wizard.clicked.connect(self._on_run_wizard)
@@ -119,7 +119,7 @@ class SensorDialog(QDialog):
         tc_layout = QVBoxLayout(tab_control)
         
         # Details group
-        details_group = QGroupBox("DETALHES DO SENSOR")
+        details_group = QGroupBox("SENSOR DETAILS")
         form = QFormLayout(details_group)
         
         self.lbl_id = QLabel()
@@ -131,14 +131,14 @@ class SensorDialog(QDialog):
         self.chk_master.toggled.connect(self._on_master_toggled)
         
         form.addRow("ID:", self.lbl_id)
-        form.addRow("Porta:", self.lbl_port)
-        form.addRow("Nome:", self.edit_name)
-        form.addRow("Sincronização:", self.chk_master)
+        form.addRow("Port:", self.lbl_port)
+        form.addRow("Name:", self.edit_name)
+        form.addRow("Synchronization:", self.chk_master)
         
         tc_layout.addWidget(details_group)
         
         # Status group
-        status_group = QGroupBox("STATUS EM TEMPO REAL")
+        status_group = QGroupBox("REAL-TIME STATUS")
         sf = QFormLayout(status_group)
         
         # LEDs Container
@@ -177,10 +177,10 @@ class SensorDialog(QDialog):
         tc_layout.addWidget(status_group)
         
         # Manual Actions
-        actions_group = QGroupBox("CONTROLE MANUAL")
+        actions_group = QGroupBox("MANUAL CONTROL")
         al = QHBoxLayout(actions_group)
         
-        self.btn_connect = QPushButton("Conectar")
+        self.btn_connect = QPushButton("Connect")
         self.btn_connect.clicked.connect(self._on_connect_toggle)
         al.addWidget(self.btn_connect)
         
@@ -207,19 +207,19 @@ class SensorDialog(QDialog):
         tc_layout.addWidget(actions_group)
         tc_layout.addStretch()
         
-        self.tabs.addTab(tab_control, "Status & Controle")
+        self.tabs.addTab(tab_control, "Status & Control")
         
         # ── Tab 2: Signal Monitor (Pyqtgraph) ──
         tab_monitor = QWidget()
         tm_layout = QVBoxLayout(tab_monitor)
         
         stream_ctrls = QHBoxLayout()
-        stream_ctrls.addWidget(QLabel("Leitura do Eixo:"))
+        stream_ctrls.addWidget(QLabel("Read Axis:"))
         self.cmb_axis = QComboBox()
         self.cmb_axis.addItems(["z", "y", "x"])
         stream_ctrls.addWidget(self.cmb_axis)
         
-        self.chk_stream = QCheckBox("ATIVAR STREAMING (Serial)")
+        self.chk_stream = QCheckBox("ENABLE STREAMING (Serial)")
         self.chk_stream.clicked.connect(self._on_stream_toggled)
         stream_ctrls.addWidget(self.chk_stream)
         stream_ctrls.addStretch()
@@ -265,7 +265,7 @@ class SensorDialog(QDialog):
         
         layout.addWidget(splitter)
         
-        self.btn_close = QPushButton("Fechar")
+        self.btn_close = QPushButton("Close")
         self.btn_close.clicked.connect(self.accept)
         layout.addWidget(self.btn_close, alignment=Qt.AlignmentFlag.AlignRight)
         
@@ -359,7 +359,7 @@ class SensorDialog(QDialog):
         self.lbl_temp_err.setText(f"{info.cell_temp_error:.4f}")
         
         if info.connected:
-            self.btn_connect.setText("Desconectar")
+            self.btn_connect.setText("Disconnect")
             self.btn_zero.setEnabled(True)
             self.btn_reset.setEnabled(True)
             self.btn_auto_start.setEnabled(True)
@@ -368,7 +368,7 @@ class SensorDialog(QDialog):
             self.btn_wizard.setEnabled(True)
             self.chk_stream.setEnabled(True)
         else:
-            self.btn_connect.setText("Conectar")
+            self.btn_connect.setText("Connect")
             self.btn_zero.setEnabled(False)
             self.btn_reset.setEnabled(False)
             self.btn_auto_start.setEnabled(False)
@@ -382,10 +382,10 @@ class SensorDialog(QDialog):
     def _on_add_sensor(self):
         ports = self.manager.list_available_ports()
         if not ports:
-            QMessageBox.warning(self, "Aviso", "Nenhuma porta COM encontrada.")
+            QMessageBox.warning(self, "Warning", "No COM port found.")
             return
             
-        port, ok = QInputDialog.getItem(self, "Adicionar Sensor", "Selecione a porta:", ports, 0, False)
+        port, ok = QInputDialog.getItem(self, "Add Sensor", "Select port:", ports, 0, False)
         if ok and port:
             s_id = f"qzfm_{len(self.manager.get_configs())}"
             self.manager.add_sensor(s_id, port)
@@ -394,7 +394,7 @@ class SensorDialog(QDialog):
     def _on_remove_sensor(self):
         s_id = self._current_sensor_id()
         if s_id:
-            reply = QMessageBox.question(self, "Confirmar", f"Remover {s_id}?")
+            reply = QMessageBox.question(self, "Confirm", f"Remove {s_id}?")
             if reply == QMessageBox.StandardButton.Yes:
                 self.manager.remove_sensor(s_id)
                 self._populate_list()
@@ -463,7 +463,7 @@ class SensorDialog(QDialog):
     def _on_reboot(self):
         s_id = self._current_sensor_id()
         if s_id:
-            reply = QMessageBox.question(self, "Confirmar Reboot", f"Reiniciar o sensor {s_id}?\nA comunicação será interrompida temporariamente.")
+            reply = QMessageBox.question(self, "Confirm Reboot", f"Reboot sensor {s_id}?\nCommunication will be temporarily interrupted.")
             if reply == QMessageBox.StandardButton.Yes:
                 self.worker.queue_command(s_id, SensorCommand.REBOOT)
             

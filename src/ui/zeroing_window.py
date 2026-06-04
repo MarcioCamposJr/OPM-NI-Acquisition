@@ -69,7 +69,7 @@ class ZeroingWindow(QDialog):
         layout.addWidget(self.progress)
         
         # Stop button
-        self.btn_stop = QPushButton("CANCELAR")
+        self.btn_stop = QPushButton("CANCEL")
         self.btn_stop.setStyleSheet(f"color: {TEXT_PRIMARY};")
         layout.addWidget(self.btn_stop)
         
