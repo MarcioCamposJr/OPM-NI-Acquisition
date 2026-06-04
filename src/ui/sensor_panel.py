@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
@@ -55,9 +55,10 @@ class SensorPanel(QGroupBox):
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
         
-    def update_sensor(self, info: SensorInfo):
+    @pyqtSlot(str, object)
+    def update_sensor(self, s_id: str, info: SensorInfo):
         """Track the connected status of a sensor and update the summary label."""
-        self._states[info.sensor_id] = info.connected
+        self._states[s_id] = info.connected
         self._update_label()
         
     def remove_sensor(self, sensor_id: str):

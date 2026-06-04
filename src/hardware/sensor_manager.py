@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from PyQt6.QtCore import QSettings
 from serial.tools import list_ports
 import serial
+import time
 
 try:
     from QZFM import QZFM
