@@ -172,6 +172,10 @@ class SensorDialog(QDialog):
         self.btn_reset.clicked.connect(self._on_reset)
         al.addWidget(self.btn_reset)
         
+        self.btn_auto_start = QPushButton("Auto Start")
+        self.btn_auto_start.clicked.connect(self._on_auto_start)
+        al.addWidget(self.btn_auto_start)
+        
         tc_layout.addWidget(actions_group)
         tc_layout.addStretch()
         
@@ -318,16 +322,16 @@ class SensorDialog(QDialog):
         self.lbl_bz.setText(f"{info.bz_field:.2f} pT")
         self.lbl_temp_err.setText(f"{info.cell_temp_error:.4f}")
         
-        if info.connected:
             self.btn_connect.setText("Desconectar")
             self.btn_zero.setEnabled(True)
             self.btn_reset.setEnabled(True)
+            self.btn_auto_start.setEnabled(True)
             self.btn_wizard.setEnabled(True)
             self.chk_stream.setEnabled(True)
-        else:
             self.btn_connect.setText("Conectar")
             self.btn_zero.setEnabled(False)
             self.btn_reset.setEnabled(False)
+            self.btn_auto_start.setEnabled(False)
             self.btn_wizard.setEnabled(False)
             self.chk_stream.setEnabled(False)
             self.chk_stream.setChecked(False)
@@ -403,6 +407,11 @@ class SensorDialog(QDialog):
         s_id = self._current_sensor_id()
         if s_id:
             self.worker.queue_command(s_id, SensorCommand.FIELD_RESET)
+            
+    def _on_auto_start(self):
+        s_id = self._current_sensor_id()
+        if s_id:
+            self.worker.queue_command(s_id, SensorCommand.AUTO_START)
             
     def _on_run_wizard(self):
         s_id = self._current_sensor_id()

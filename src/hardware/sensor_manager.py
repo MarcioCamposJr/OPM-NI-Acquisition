@@ -47,6 +47,11 @@ class MockQZFM:
             "B0 field (pT)": 0.0,
         }
         
+        class MockSerial:
+            def write(self, data: bytes):
+                pass
+        self.ser = MockSerial()
+        
         self.messages = []
         self._start_time = time.time()
 
@@ -101,6 +106,16 @@ class MockQZFM:
         self.messages.append(("Device rebooted", time.time()))
         self.led = {k: False for k in self.led}
         self.sensor_par = {k: float('nan') for k in self.sensor_par}
+
+    def set_master(self, master: bool) -> None:
+        self.led["is master"] = master
+        self.messages.append((f"Set master to {master}", time.time()))
+
+    def set_gain(self, mode: str) -> None:
+        self.messages.append((f"Set gain to {mode}", time.time()))
+
+    def save_state(self) -> None:
+        self.messages.append(("State saved", time.time()))
 
     def update_status(self, clear_buffer: bool = True) -> None:
         self.status_last_updated = time.time()
