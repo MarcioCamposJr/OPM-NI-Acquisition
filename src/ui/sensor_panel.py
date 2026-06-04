@@ -10,7 +10,8 @@ from PyQt6.QtWidgets import (
     QLabel,
     QPushButton,
     QFrame,
-    QScrollArea
+    QScrollArea,
+    QGroupBox
 )
 
 from src.hardware.sensor_manager import SensorInfo
@@ -94,7 +95,7 @@ class SensorCard(QFrame):
         self.lbl_led.setStyleSheet(f"background-color: {color}; border-radius: 5px;")
 
 
-class SensorPanel(QWidget):
+class SensorPanel(QGroupBox):
     """Sidebar panel to summarize sensor statuses.
     
     Signals
@@ -106,27 +107,23 @@ class SensorPanel(QWidget):
     manage_clicked = pyqtSignal()
     
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__("QZFM SENSORS", parent)
         self._cards: dict[str, SensorCard] = {}
         self._setup_ui()
         
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(6)
         
-        # Header and button
+        # Header button
         header_layout = QHBoxLayout()
-        lbl_title = QLabel("QZFM SENSORS")
-        lbl_title.setStyleSheet(f"color: {TEXT_SECONDARY}; font-weight: bold; font-size: 11px;")
-        header_layout.addWidget(lbl_title)
-        
         header_layout.addStretch()
         
-        self.btn_manage = QPushButton("MANAGE")
+        self.btn_manage = QPushButton("MANAGE SENSORS")
         self.btn_manage.setToolTip("Open Sensor Manager and Calibration Wizard")
         self.btn_manage.setFixedHeight(22)
-        self.btn_manage.setStyleSheet("font-size: 10px; padding: 2px 8px;")
+        self.btn_manage.setStyleSheet("font-size: 10px; padding: 2px 8px; font-weight: bold;")
         self.btn_manage.clicked.connect(self.manage_clicked.emit)
         header_layout.addWidget(self.btn_manage)
         
@@ -147,8 +144,9 @@ class SensorPanel(QWidget):
         
         self.scroll_area.setWidget(self.cards_container)
         
-        # Set a fixed max height so it doesn't push acquisition controls out
-        self.scroll_area.setMaximumHeight(150)
+        # Make the scroll area adapt to its content, without a fixed large gap
+        self.scroll_area.setMinimumHeight(0)
+        self.scroll_area.setMaximumHeight(200)
         
         layout.addWidget(self.scroll_area)
         

@@ -124,7 +124,6 @@ QLabel#title {{
     font-size: {FONT_SIZE_TITLE};
     font-weight: 600;
     color: {TEXT_BRIGHT};
-    letter-spacing: 1px;
     text-transform: uppercase;
 }}
 
@@ -165,7 +164,6 @@ QPushButton {{
     font-weight: 600;
     min-height: 22px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }}
 
 QPushButton:hover {{
@@ -323,7 +321,6 @@ QTabBar::tab {{
     font-size: {FONT_SIZE_SM};
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }}
 
 QTabBar::tab:selected {{
@@ -376,7 +373,6 @@ QGroupBox::title {{
     color: {TEXT_PRIMARY};
     font-size: {FONT_SIZE_SM};
     text-transform: uppercase;
-    letter-spacing: 1px;
     background-color: {BG_CARD};
 }}
 
@@ -436,7 +432,6 @@ QFormLayout QLabel {{
     font-size: {FONT_SIZE_SM};
     color: {TEXT_SECONDARY};
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }}
 
 /* ── Sensor & Wizard Styles ───────────────────────────────────────────── */

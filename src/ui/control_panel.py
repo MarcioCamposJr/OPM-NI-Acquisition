@@ -142,12 +142,12 @@ class ControlPanel(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(4)
 
-        self._btn_start = QPushButton("DAQ START")
+        self._btn_start = QPushButton("START DAQ")
         self._btn_start.setObjectName("btn_start")
         self._btn_start.clicked.connect(self.start_clicked.emit)
         btn_row.addWidget(self._btn_start)
 
-        self._btn_stop = QPushButton("DAQ STOP")
+        self._btn_stop = QPushButton("STOP DAQ")
         self._btn_stop.setObjectName("btn_stop")
         self._btn_stop.setEnabled(False)
         self._btn_stop.clicked.connect(self.stop_clicked.emit)
@@ -158,7 +158,7 @@ class ControlPanel(QWidget):
         layout.addWidget(acq_group)
 
         # ── Logging controls ────────────────────────────────────────── #
-        rec_group = QGroupBox("DATA LOGGING")
+        rec_group = QGroupBox("RECORDING")
         rec_layout = QVBoxLayout(rec_group)
         rec_layout.setSpacing(6)
 
@@ -181,7 +181,7 @@ class ControlPanel(QWidget):
         an_layout = QVBoxLayout(an_group)
         an_layout.setSpacing(6)
         
-        self._btn_ica = QPushButton("REALTIME ICA")
+        self._btn_ica = QPushButton("ICA REALTIME")
         self._btn_ica.clicked.connect(self.ica_clicked.emit)
         an_layout.addWidget(self._btn_ica)
         
@@ -208,7 +208,7 @@ class ControlPanel(QWidget):
         self._spin_window.setDecimals(1)
         self._spin_window.setSingleStep(0.5)
         self._spin_window.valueChanged.connect(self._on_window_changed)
-        param_layout.addRow("WINDOW:", self._spin_window)
+        param_layout.addRow("TIME:", self._spin_window)
 
         layout.addWidget(param_group)
 

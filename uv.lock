@@ -603,7 +603,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2" },
     { name = "pyqt6", specifier = ">=6.6" },
     { name = "pyqtgraph", specifier = ">=0.13" },
-    { name = "qzfm", specifier = ">=0.4.1" },
+    { name = "qzfm", specifier = ">=0.4.0" },
     { name = "scikit-learn", specifier = ">=1.8.0" },
     { name = "scipy", specifier = ">=1.12" },
 ]
