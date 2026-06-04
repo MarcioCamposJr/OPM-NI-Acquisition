@@ -159,10 +159,10 @@ QPushButton {{
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
     border-radius: {RADIUS_SM};
-    padding: 6px 14px;
+    padding: 5px 12px;
     font-size: {FONT_SIZE_MD};
     font-weight: 600;
-    min-height: 22px;
+    min-height: 26px;
     text-transform: uppercase;
 }}
 
@@ -242,6 +242,7 @@ QSpinBox, QDoubleSpinBox, QLineEdit {{
     border: 1px solid {BORDER};
     border-radius: {RADIUS_SM};
     padding: 4px 8px;
+    min-height: 24px;
     font-family: {FONT_MONO};
     font-size: {FONT_SIZE_MD};
     selection-background-color: {ACCENT_PRIMARY};
@@ -261,13 +262,13 @@ QSpinBox::up-button, QDoubleSpinBox::up-button {{
     background-color: {BG_CARD};
     border-left: 1px solid {BORDER};
     border-bottom: 1px solid {BORDER};
-    width: 18px;
+    width: 20px;
 }}
 
 QSpinBox::down-button, QDoubleSpinBox::down-button {{
     background-color: {BG_CARD};
     border-left: 1px solid {BORDER};
-    width: 18px;
+    width: 20px;
 }}
 
 QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
@@ -359,9 +360,9 @@ QGroupBox {{
     background-color: {BG_CARD};
     border: 1px solid {BORDER};
     border-radius: {RADIUS_SM};
-    margin-top: 14px;
-    padding: 12px;
-    padding-top: 16px;
+    margin-top: 10px;
+    padding: 8px;
+    padding-top: 14px;
     font-weight: 600;
     font-size: {FONT_SIZE_SM};
 }}
