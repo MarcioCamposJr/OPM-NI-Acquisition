@@ -34,6 +34,7 @@ class SensorWorker(QThread):
     command_finished = pyqtSignal(str, str, bool)  # (sensor_id, command_name, success)
     error_occurred = pyqtSignal(str, str)    # (sensor_id, error message)
     zeroing_data = pyqtSignal(str, float, float, float, float) # (sensor_id, bz, by, b0, t_err)
+    field_zero_completed = pyqtSignal(str)   # (sensor_id)
     data_received = pyqtSignal(str, object, object) # (sensor_id, times, fields)
     log_received = pyqtSignal(str, str) # (sensor_id, message)
 
@@ -46,6 +47,8 @@ class SensorWorker(QThread):
         self._running = False
         self._polling_interval = 2.0  # seconds between status updates
         self._zeroing_tasks: set[str] = set()
+        self._zeroing_monitor: dict[str, dict[str, list[float]]] = {}
+        self._zero_cond = 100.0
         self._streaming_tasks: dict[str, str] = {}  # sensor_id -> axis
 
     def start_worker(self):
@@ -71,11 +74,18 @@ class SensorWorker(QThread):
     def add_zeroing_task(self, sensor_id: str):
         self._mutex.lock()
         self._zeroing_tasks.add(sensor_id)
+        self._zeroing_monitor[sensor_id] = {
+            "t": [],
+            "b0": [],
+            "by": [],
+            "bz": [],
+        }
         self._mutex.unlock()
         
     def remove_zeroing_task(self, sensor_id: str):
         self._mutex.lock()
         self._zeroing_tasks.discard(sensor_id)
+        self._zeroing_monitor.pop(sensor_id, None)
         self._mutex.unlock()
 
     def run(self):
@@ -142,6 +152,7 @@ class SensorWorker(QThread):
                             sensor.sensor_par.get('B0 field (pT)', 0.0),
                             sensor.sensor_par.get('cell temp error', 0.0)
                         )
+                        self._check_zeroing_completion(s_id, sensor)
                     except Exception:
                         pass
 
@@ -329,6 +340,35 @@ class SensorWorker(QThread):
                     self._emit_status(s_id)
                 except Exception as e:
                     logger.debug(f"Polling error on {s_id}: {e}")
+
+    def _check_zeroing_completion(self, sensor_id: str, sensor) -> None:
+        monitor = self._zeroing_monitor.get(sensor_id)
+        if monitor is None:
+            return
+
+        monitor["t"].append(sensor.status_last_updated)
+        monitor["b0"].append(sensor.sensor_par.get('B0 field (pT)', 0.0))
+        monitor["by"].append(sensor.sensor_par.get('By field (pT)', 0.0))
+        monitor["bz"].append(sensor.sensor_par.get('Bz field (pT)', 0.0))
+
+        if len(monitor["t"]) < 6:
+            return
+
+        t_diff = [j - i for i, j in zip(monitor["t"][-5:][:-1], monitor["t"][-5:][1:])]
+        b0_diff = [j - i for i, j in zip(monitor["b0"][-5:][:-1], monitor["b0"][-5:][1:])]
+        by_diff = [j - i for i, j in zip(monitor["by"][-5:][:-1], monitor["by"][-5:][1:])]
+        bz_diff = [j - i for i, j in zip(monitor["bz"][-5:][:-1], monitor["bz"][-5:][1:])]
+
+        b0_grad = [abs(d / dt) if dt > 0 else float('inf') for d, dt in zip(b0_diff, t_diff)]
+        by_grad = [abs(d / dt) if dt > 0 else float('inf') for d, dt in zip(by_diff, t_diff)]
+        bz_grad = [abs(d / dt) if dt > 0 else float('inf') for d, dt in zip(bz_diff, t_diff)]
+
+        if all(x < self._zero_cond for x in b0_grad) and all(x < self._zero_cond for x in by_grad) and all(x < self._zero_cond for x in bz_grad):
+            sensor.field_zero(on=False, show=False)
+            self.remove_zeroing_task(sensor_id)
+            self.progress.emit(sensor_id, "Field zeroing completed.")
+            self.field_zero_completed.emit(sensor_id)
+            self._emit_status(sensor_id)
 
     def _emit_status(self, sensor_id: str):
         info = self._manager.get_info(sensor_id)

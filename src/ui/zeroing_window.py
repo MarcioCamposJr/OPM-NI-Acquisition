@@ -40,12 +40,12 @@ class ZeroingWindow(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
         
-        lbl_info = QLabel("Aguarde. Otimizando campos nulos...")
-        lbl_info.setStyleSheet(f"color: {TEXT_PRIMARY}; font-weight: bold;")
-        lbl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(lbl_info)
+        self.lbl_info = QLabel("Wait a little bit, stabilizing fields...")
+        self.lbl_info.setStyleSheet(f"color: {TEXT_PRIMARY}; font-weight: bold;")
+        self.lbl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.lbl_info)
         
-        group = QGroupBox("MONITORAMENTO EM TEMPO REAL")
+        group = QGroupBox("CLICK OK WHEN FIELD VALUES ARE STABILIZED")
         form = QFormLayout(group)
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         
@@ -68,10 +68,18 @@ class ZeroingWindow(QDialog):
         self.progress.setRange(0, 0) # Indeterminate
         layout.addWidget(self.progress)
         
-        # Stop button
+        button_row = QHBoxLayout()
+        button_row.addStretch()
+
+        self.btn_ok = QPushButton("OK")
+        self.btn_ok.setEnabled(False)
+        button_row.addWidget(self.btn_ok)
+
         self.btn_stop = QPushButton("CANCEL")
         self.btn_stop.setStyleSheet(f"color: {TEXT_PRIMARY};")
-        layout.addWidget(self.btn_stop)
+        button_row.addWidget(self.btn_stop)
+
+        layout.addLayout(button_row)
         
     @pyqtSlot(str, float, float, float, float)
     def update_data(self, s_id: str, bz: float, by: float, b0: float, t_err: float):

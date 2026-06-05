@@ -280,6 +280,7 @@ class SensorDialog(QDialog):
     def _connect_signals(self):
         self.worker.status_updated.connect(self._on_status_updated)
         self.worker.zeroing_data.connect(self._on_zeroing_data)
+        self.worker.field_zero_completed.connect(self._on_field_zero_completed)
         self.worker.data_received.connect(self._on_data_received)
         self.worker.log_received.connect(self._on_log_received)
         
@@ -439,6 +440,8 @@ class SensorDialog(QDialog):
             self.worker.queue_command(s_id, SensorCommand.FIELD_ZERO_START, axes_xyz=True)
             info = self.manager.get_info(s_id)
             zw = ZeroingWindow(s_id, info.name, self)
+            zw.btn_ok.setEnabled(False)
+            zw.btn_ok.clicked.connect(lambda: self._confirm_zeroing(s_id))
             zw.btn_stop.clicked.connect(lambda: self._stop_zeroing(s_id))
             zw.show()
             self._zeroing_windows[s_id] = zw
@@ -448,6 +451,19 @@ class SensorDialog(QDialog):
         if s_id in self._zeroing_windows:
             self._zeroing_windows[s_id].close()
             del self._zeroing_windows[s_id]
+
+    def _confirm_zeroing(self, s_id: str):
+        self.worker.queue_command(s_id, SensorCommand.CALIBRATE)
+        if s_id in self._zeroing_windows:
+            self._zeroing_windows[s_id].close()
+            del self._zeroing_windows[s_id]
+
+    def _on_field_zero_completed(self, s_id: str):
+        if s_id in self._zeroing_windows:
+            window = self._zeroing_windows[s_id]
+            window.btn_ok.setEnabled(True)
+            if hasattr(window, 'lbl_info'):
+                window.lbl_info.setText("Field zeroing complete. Press OK to continue.")
             
     def _on_reset(self):
         s_id = self._current_sensor_id()
